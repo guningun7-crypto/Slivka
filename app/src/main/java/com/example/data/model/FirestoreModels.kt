@@ -1,5 +1,8 @@
 package com.example.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class DetectiveProfile(
     val id: String = "",
     val userId: String = "",
@@ -18,6 +21,7 @@ data class DetectiveProfile(
     val onboardingCompleted: Boolean = false
 )
 
+@Immutable
 data class LocationProgress(
     val id: String = "",
     val userId: String = "",
@@ -31,6 +35,7 @@ data class LocationProgress(
     val questsCompletedCount: Long = 0L
 )
 
+@Immutable
 data class CollectedClue(
     val id: String = "",
     val userId: String = "",
@@ -42,6 +47,7 @@ data class CollectedClue(
     val rarity: String = "common"
 )
 
+@Immutable
 data class UnlockedAchievement(
     val id: String = "",
     val userId: String = "",
@@ -49,6 +55,7 @@ data class UnlockedAchievement(
     val title: String = ""
 )
 
+@Immutable
 data class QuestProgress(
     val id: String = "",
     val userId: String = "",

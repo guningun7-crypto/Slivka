@@ -1,6 +1,7 @@
 package com.example.data.model
 
 import androidx.annotation.DrawableRes
+import androidx.compose.runtime.Immutable
 
 enum class DifficultyLevel(
     val id: String,
@@ -23,8 +24,8 @@ enum class DifficultyLevel(
         freeHints = 2,
         missPenaltySeconds = 2,
         scoreMultiplier = 1.0,
-        itemScale = 0.96f,
-        ambientAlpha = 0.90f
+        itemScale = 0.84f,
+        ambientAlpha = 0.84f
     ),
     DETECTIVE(
         id = "detective",
@@ -35,8 +36,8 @@ enum class DifficultyLevel(
         freeHints = 2,
         missPenaltySeconds = 5,
         scoreMultiplier = 1.6,
-        itemScale = 0.82f,
-        ambientAlpha = 0.80f
+        itemScale = 0.70f,
+        ambientAlpha = 0.74f
     ),
     MASTER(
         id = "master",
@@ -47,8 +48,8 @@ enum class DifficultyLevel(
         freeHints = 1,
         missPenaltySeconds = 9,
         scoreMultiplier = 2.5,
-        itemScale = 0.68f,
-        ambientAlpha = 0.70f
+        itemScale = 0.58f,
+        ambientAlpha = 0.64f
     );
 
     companion object {
@@ -87,7 +88,6 @@ enum class HiddenItemKind {
     DEW_VIAL,
     TOWEL,
     LANTERN,
-    // New items for expanded 12-item levels & 5 new fairy-tale worlds
     ICE_CROWN,
     MUFF,
     REINDEER_BELL,
@@ -113,6 +113,7 @@ enum class HiddenItemKind {
     COIN_POUCH
 }
 
+@Immutable
 data class ClueInfo(
     val clueId: String,
     val title: String,
@@ -121,6 +122,7 @@ data class ClueInfo(
     val rarity: String
 )
 
+@Immutable
 data class HiddenObjectDef(
     val id: String,
     val name: String,
@@ -132,6 +134,7 @@ data class HiddenObjectDef(
     val clueInfo: ClueInfo? = null
 )
 
+@Immutable
 data class DialogueLine(
     val speaker: String,
     val role: String,
@@ -139,6 +142,7 @@ data class DialogueLine(
     val text: String
 )
 
+@Immutable
 data class FairyLocationDef(
     val id: String,
     val title: String,
@@ -154,6 +158,7 @@ data class FairyLocationDef(
     val items: List<HiddenObjectDef>
 )
 
+@Immutable
 data class QuestDef(
     val id: String,
     val title: String,
@@ -165,6 +170,7 @@ data class QuestDef(
     val rewardLabel: String
 )
 
+@Immutable
 data class AchievementDef(
     val id: String,
     val title: String,
@@ -172,6 +178,7 @@ data class AchievementDef(
     val badgeTitle: String
 )
 
+@Immutable
 data class WardrobeOption(
     val id: String,
     val title: String,

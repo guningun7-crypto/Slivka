@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Сказкосыск"
+rootProject.name = "Сливка школа сыщика"
 
 include(":app")

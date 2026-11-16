@@ -1,4 +1,4 @@
-name: Сборка Сказкосыск APK
+name: Сборка Сливка школа сыщика APK
 
 on:
   push:
@@ -35,14 +35,14 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Сборка установочного файла Сказкосыск.apk
+      - name: Сборка установочного файла APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Переименование файла в Skazkosysk.apk
-        run: cp app/build/outputs/apk/debug/app-debug.apk Skazkosysk.apk
+      - name: Переименование файла в Slivka_Shkola_Syshchika.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Slivka_Shkola_Syshchika.apk
 
-      - name: Публикация готового установщика Skazkosysk.apk
+      - name: Публикация готового установщика APK
         uses: actions/upload-artifact@v4
         with:
-          name: Skazkosysk-APK
-          path: Skazkosysk.apk
+          name: Slivka-Shkola-Syshchika-APK
+          path: Slivka_Shkola_Syshchika.apk
