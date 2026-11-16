@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.WorkOutline
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,21 +35,14 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,10 +52,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.data.repository.DetectiveRepository
 import com.example.data.repository.LocalGuestRepository
-import com.example.ui.auth.AuthScreen
-import com.example.ui.auth.signOut
 import com.example.ui.screens.ArchiveScreen
 import com.example.ui.screens.CharacterStudioScreen
 import com.example.ui.screens.FairyMapScreen
@@ -72,15 +61,12 @@ import com.example.ui.screens.QuestsScreen
 import com.example.ui.theme.FairyDetectiveTheme
 import com.example.ui.viewmodel.DetectiveViewModel
 import com.example.ui.viewmodel.GameUiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.FirebaseFirestore
 
 const val ROUTE_MAP = "map"
 const val ROUTE_QUESTS = "quests"
 const val ROUTE_ARCHIVE = "archive"
 const val ROUTE_PROFILE = "profile"
+private const val LOCAL_USER_ID = "guest_local"
 
 private data class NavTab(
     val route: String,
@@ -102,86 +88,20 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FairyDetectiveTheme {
-                AppNavigation()
+                LocalGameHost()
             }
         }
     }
 }
 
 @Composable
-fun AppNavigation() {
-    val context = LocalContext.current
-    val auth = Firebase.auth
-    val guestRepo = remember(context) { LocalGuestRepository(context) }
-    var currentUser by remember { mutableStateOf(auth.currentUser) }
-    var isGuestMode by remember { mutableStateOf(guestRepo.isGuestActive()) }
-
-    DisposableEffect(Unit) {
-        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            currentUser = firebaseAuth.currentUser
-        }
-        auth.addAuthStateListener(listener)
-        onDispose { auth.removeAuthStateListener(listener) }
-    }
-
-    val user = currentUser
-    when {
-        user != null -> {
-            key("cloud_${user.uid}") {
-                AuthenticatedGameHost(
-                    currentUserId = user.uid,
-                    isGuestMode = false,
-                    onExitGuestMode = {}
-                )
-            }
-        }
-        isGuestMode -> {
-            key("guest_local") {
-                AuthenticatedGameHost(
-                    currentUserId = "guest_local",
-                    isGuestMode = true,
-                    onExitGuestMode = {
-                        guestRepo.setGuestActive(false)
-                        isGuestMode = false
-                    }
-                )
-            }
-        }
-        else -> {
-            AuthScreen(
-                onAuthSuccess = { currentUser = auth.currentUser },
-                onPlayAsGuest = {
-                    guestRepo.setGuestActive(true)
-                    isGuestMode = true
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun AuthenticatedGameHost(
-    currentUserId: String,
-    isGuestMode: Boolean,
-    onExitGuestMode: () -> Unit
-) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val credentialManager = remember(context) { CredentialManager.create(context) }
-
+fun LocalGameHost() {
     val viewModel: DetectiveViewModel = viewModel(
-        key = "${if (isGuestMode) "guest" else "cloud"}_$currentUserId",
+        key = "local_detective",
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY])
-                val dataSource = if (isGuestMode) {
-                    LocalGuestRepository(app)
-                } else {
-                    val databaseId = app.getString(R.string.firestore_database_id)
-                    val db = FirebaseFirestore.getInstance(databaseId)
-                    DetectiveRepository(db)
-                }
-                DetectiveViewModel(dataSource, currentUserId)
+                DetectiveViewModel(LocalGuestRepository(app), LOCAL_USER_ID)
             }
         }
     )
@@ -211,17 +131,11 @@ fun AuthenticatedGameHost(
 
         is GameUiState.Error -> {
             Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = state.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { signOut(credentialManager, coroutineScope) }) {
-                        Text("Сменить аккаунт")
-                    }
-                }
+                Text(
+                    text = state.message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
 
@@ -260,18 +174,10 @@ fun AuthenticatedGameHost(
                         onExit = { viewModel.exitActiveScene() }
                     )
                 } else {
-                MainHubScaffold(
+                    MainHubScaffold(
                         state = state,
-                        isGuestMode = isGuestMode,
                         snackbarHostState = snackbarHostState,
-                        viewModel = viewModel,
-                        onSignOut = {
-                            if (isGuestMode) {
-                                onExitGuestMode()
-                            } else {
-                                signOut(credentialManager, coroutineScope)
-                            }
-                        }
+                        viewModel = viewModel
                     )
                 }
             }
@@ -282,10 +188,8 @@ fun AuthenticatedGameHost(
 @Composable
 private fun MainHubScaffold(
     state: GameUiState.Ready,
-    isGuestMode: Boolean,
     snackbarHostState: SnackbarHostState,
-    viewModel: DetectiveViewModel,
-    onSignOut: () -> Unit
+    viewModel: DetectiveViewModel
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -386,7 +290,6 @@ private fun MainHubScaffold(
                     composable(ROUTE_PROFILE) {
                         CharacterStudioScreen(
                             isOnboarding = false,
-                            isGuestMode = isGuestMode,
                             initialProfile = profile,
                             onSave = { name, gender, skin, hairStyle, hairColor, hat, coat, acc ->
                                 viewModel.updateCustomization(
@@ -399,8 +302,7 @@ private fun MainHubScaffold(
                                     coatId = coat,
                                     accessoryId = acc
                                 )
-                            },
-                            onSignOut = onSignOut
+                            }
                         )
                     }
                 }

@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Face
@@ -38,7 +37,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -66,7 +64,6 @@ import com.example.ui.components.DetectiveAvatarCanvas
 @Composable
 fun CharacterStudioScreen(
     isOnboarding: Boolean,
-    isGuestMode: Boolean = false,
     initialProfile: DetectiveProfile?,
     onSave: (
         name: String,
@@ -78,7 +75,6 @@ fun CharacterStudioScreen(
         coatId: String,
         accessoryId: String
     ) -> Unit,
-    onSignOut: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var name by remember(initialProfile) { mutableStateOf(initialProfile?.name ?: "") }
@@ -150,47 +146,17 @@ fun CharacterStudioScreen(
                     }
                 }
             } else if (initialProfile != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Ателье детектива",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Счёт: ${initialProfile.totalScore} • Звёзд: ${initialProfile.totalStars}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (isGuestMode) {
-                            Text(
-                                text = "Режим без регистрации (прогресс на устройстве)",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-                    if (onSignOut != null) {
-                        OutlinedButton(
-                            onClick = onSignOut,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("sign_out_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Logout,
-                                contentDescription = if (isGuestMode) "Войти в аккаунт" else "Выйти из аккаунта",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isGuestMode) "Google-вход" else "Выйти")
-                        }
-                    }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Ателье детектива",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Счёт: ${initialProfile.totalScore} • Звёзд: ${initialProfile.totalStars}/24",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

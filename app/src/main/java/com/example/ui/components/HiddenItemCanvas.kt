@@ -265,5 +265,6 @@ private fun DrawScope.drawHiddenItemShape(
             drawRoundRect(color = darkGold, topLeft = Offset(w * 0.28f, h * 0.28f), size = Size(w * 0.44f, h * 0.52f), cornerRadius = CornerRadius(w * 0.08f, w * 0.08f))
             drawRoundRect(color = Color(0xFFFFE066).copy(alpha = alpha), topLeft = Offset(w * 0.36f, h * 0.36f), size = Size(w * 0.28f, h * 0.36f), cornerRadius = CornerRadius(w * 0.05f, w * 0.05f))
         }
+        else -> drawExtraHiddenItemShape(kind, w, h, alpha)
     }
 }

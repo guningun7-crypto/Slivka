@@ -20,16 +20,10 @@ class LocalGuestRepository(context: Context) : DetectiveDataSource {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val _profile = MutableStateFlow(readProfile())
-    private val _locations = MutableStateFlow(readLocations())
+    private val _locations = MutableStateFlow(mergeLocationsWithCatalog(readLocations()))
     private val _clues = MutableStateFlow(readClues())
     private val _achievements = MutableStateFlow(readAchievements())
-    private val _quests = MutableStateFlow(readQuests())
-
-    fun isGuestActive(): Boolean = prefs.getBoolean(KEY_GUEST_ACTIVE, false)
-
-    fun setGuestActive(active: Boolean) {
-        prefs.edit().putBoolean(KEY_GUEST_ACTIVE, active).apply()
-    }
+    private val _quests = MutableStateFlow(mergeQuestsWithCatalog(readQuests()))
 
     override fun observeProfile(userId: String): Flow<DetectiveProfile?> = _profile.asStateFlow()
     override fun observeLocations(userId: String): Flow<List<LocationProgress>> = _locations.asStateFlow()
@@ -162,7 +156,7 @@ class LocalGuestRepository(context: Context) : DetectiveDataSource {
         if (idx >= 0) {
             val existing = list[idx]
             if (!existing.rewardClaimed) {
-                list[idx] = existing.copy(currentProgress = clamped, status = status)
+                list[idx] = existing.copy(currentProgress = clamped, status = status, targetProgress = targetProgress)
             }
         } else {
             list.add(
@@ -213,6 +207,60 @@ class LocalGuestRepository(context: Context) : DetectiveDataSource {
         return Result.success(Unit)
     }
 
+    private fun mergeLocationsWithCatalog(saved: List<LocationProgress>): List<LocationProgress> {
+        if (saved.isEmpty()) return saved
+        val byId = saved.associateBy { it.locationId }.toMutableMap()
+        val userId = saved.firstOrNull()?.userId ?: "guest_local"
+        var changed = false
+
+        GameCatalog.locations.forEachIndexed { idx, loc ->
+            val prevCompleted = idx > 0 && byId[GameCatalog.locations[idx - 1].id]?.completed == true
+            val existing = byId[loc.id]
+            if (existing == null) {
+                byId[loc.id] = LocationProgress(
+                    id = loc.id,
+                    userId = userId,
+                    locationId = loc.id,
+                    unlocked = idx == 0 || prevCompleted
+                )
+                changed = true
+            } else if (prevCompleted && !existing.unlocked) {
+                byId[loc.id] = existing.copy(unlocked = true)
+                changed = true
+            }
+        }
+
+        val ordered = GameCatalog.locations.mapNotNull { byId[it.id] }
+        if (changed) writeLocations(ordered)
+        return ordered
+    }
+
+    private fun mergeQuestsWithCatalog(saved: List<QuestProgress>): List<QuestProgress> {
+        if (saved.isEmpty()) return saved
+        val byId = saved.associateBy { it.questId }.toMutableMap()
+        val userId = saved.firstOrNull()?.userId ?: "guest_local"
+        var changed = false
+
+        GameCatalog.quests.forEach { quest ->
+            if (!byId.containsKey(quest.id)) {
+                byId[quest.id] = QuestProgress(
+                    id = quest.id,
+                    userId = userId,
+                    questId = quest.id,
+                    status = "active",
+                    currentProgress = 0L,
+                    targetProgress = quest.targetProgress,
+                    rewardClaimed = false
+                )
+                changed = true
+            }
+        }
+
+        val ordered = GameCatalog.quests.mapNotNull { byId[it.id] }
+        if (changed) writeQuests(ordered)
+        return ordered
+    }
+
     private fun readProfile(): DetectiveProfile? {
         val raw = prefs.getString(KEY_PROFILE, null) ?: return null
         return try {
@@ -231,7 +279,7 @@ class LocalGuestRepository(context: Context) : DetectiveDataSource {
                 selectedDifficulty = o.optString("selectedDifficulty", "detective"),
                 totalScore = o.optLong("totalScore", 0L),
                 totalStars = o.optLong("totalStars", 0L),
-                hintsBalance = o.optLong("hintsBalance", 3L),
+                hintsBalance = o.optLong("hintsBalance", 2L),
                 onboardingCompleted = o.optBoolean("onboardingCompleted", false)
             )
         } catch (_: Exception) {
@@ -427,7 +475,6 @@ class LocalGuestRepository(context: Context) : DetectiveDataSource {
 
     private companion object {
         const val PREFS_NAME = "fairy_detective_guest_prefs"
-        const val KEY_GUEST_ACTIVE = "guest_active"
         const val KEY_PROFILE = "guest_profile"
         const val KEY_LOCATIONS = "guest_locations"
         const val KEY_CLUES = "guest_clues"

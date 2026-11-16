@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -86,10 +87,11 @@ fun FairyMapScreen(
     var selectedLocation by remember { mutableStateOf(GameCatalog.locations.first()) }
     val selectedProgress = locationsProgress[selectedLocation.id]
     val isSelectedUnlocked = selectedProgress?.unlocked == true || selectedLocation.id == "cottage"
+    val maxStars = GameCatalog.locations.size * 3
 
     val infiniteTransition = rememberInfiniteTransition(label = "mapPulse")
     val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
+        initialValue = 0.45f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
         label = "pulseAlpha"
@@ -161,7 +163,7 @@ fun FairyMapScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "${profile.totalStars}/9",
+                                text = "${profile.totalStars}/$maxStars",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
@@ -193,12 +195,12 @@ fun FairyMapScreen(
             }
 
             Text(
-                text = "Карта Сказочной страны",
+                text = "Карта Сказочной страны (8 сказок)",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Interactive Illustrated Fairy-Tale Map
+            // Tall Portrait Interactive Map for 8 Fairy-Tale Locations
             Card(
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -207,86 +209,71 @@ fun FairyMapScreen(
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.18f)
+                        .aspectRatio(0.68f)
                 ) {
                     val mapWidthPx = constraints.maxWidth.toFloat()
                     val mapHeightPx = constraints.maxHeight.toFloat()
+                    val density = LocalDensity.current
 
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Enchanted parchment + emerald terrain gradient
+                        // Northern ice -> golden sands -> emerald forest -> warm parchment
                         drawRect(
-                            brush = Brush.linearGradient(
+                            brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    Color(0xFFEBD9B4),
-                                    Color(0xFFD5E3C2),
-                                    Color(0xFFC5DFCE)
+                                    Color(0xFFCDE4F5),
+                                    Color(0xFFF0DFB6),
+                                    Color(0xFFCDE0BE),
+                                    Color(0xFFE7D4AE)
                                 )
                             )
                         )
-                        // Winding crystal river
+
+                        // Winding enchanted river across the continent
                         val river = Path().apply {
-                            moveTo(0f, size.height * 0.34f)
+                            moveTo(0f, size.height * 0.22f)
                             cubicTo(
-                                size.width * 0.35f, size.height * 0.25f,
-                                size.width * 0.55f, size.height * 0.68f,
-                                size.width, size.height * 0.60f
+                                size.width * 0.50f, size.height * 0.30f,
+                                size.width * 0.30f, size.height * 0.62f,
+                                size.width, size.height * 0.70f
                             )
                         }
                         drawPath(
                             path = river,
-                            color = Color(0xFF7CC0D8).copy(alpha = 0.65f),
-                            style = Stroke(width = size.width * 0.065f, cap = StrokeCap.Round)
+                            color = Color(0xFF72BBD4).copy(alpha = 0.58f),
+                            style = Stroke(width = size.width * 0.055f, cap = StrokeCap.Round)
                         )
 
-                        // Decorative forest clusters
+                        // Decorative forest and snowy mountain accents
                         val treeCenters = listOf(
-                            0.12f to 0.22f, 0.20f to 0.16f, 0.85f to 0.78f,
-                            0.74f to 0.85f, 0.66f to 0.16f, 0.90f to 0.38f
+                            0.10f to 0.72f, 0.88f to 0.66f, 0.12f to 0.53f,
+                            0.88f to 0.44f, 0.14f to 0.34f, 0.50f to 0.90f
                         )
                         treeCenters.forEach { (tx, ty) ->
                             drawCircle(
-                                color = Color(0xFF2E7D5B).copy(alpha = 0.45f),
-                                radius = size.width * 0.055f,
-                                center = Offset(size.width * tx, size.height * ty)
-                            )
-                            drawCircle(
-                                color = Color(0xFF1F5D42).copy(alpha = 0.55f),
-                                radius = size.width * 0.036f,
+                                color = Color(0xFF2E7D5B).copy(alpha = 0.38f),
+                                radius = size.width * 0.048f,
                                 center = Offset(size.width * tx, size.height * ty)
                             )
                         }
 
-                        // Dotted cobblestone path connecting all 3 fairy tales
+                        // Dashed cobblestone trail linking all 8 fairy tales
                         val pts = GameCatalog.locations.map {
                             Offset(size.width * it.mapXFraction, size.height * it.mapYFraction)
                         }
                         for (i in 0 until pts.lastIndex) {
                             drawLine(
-                                color = Color(0xFF6B3E26).copy(alpha = 0.75f),
+                                color = Color(0xFF6B3E26).copy(alpha = 0.72f),
                                 start = pts[i],
                                 end = pts[i + 1],
-                                strokeWidth = size.width * 0.015f,
+                                strokeWidth = size.width * 0.013f,
                                 cap = StrokeCap.Round,
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 14f), 0f)
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 12f), 0f)
                             )
                         }
-
-                        // Compass rose in bottom-right corner
-                        val compCenter = Offset(size.width * 0.88f, size.height * 0.85f)
-                        drawCircle(
-                            color = Color(0xFF5A2D82).copy(alpha = 0.15f),
-                            radius = size.width * 0.07f,
-                            center = compCenter
-                        )
-                        drawCircle(
-                            color = Color(0xFFA66E00),
-                            radius = size.width * 0.07f,
-                            center = compCenter,
-                            style = Stroke(width = 3f)
-                        )
                     }
 
-                    // Interactive Location Nodes
+                    // 8 Interactive Location Nodes
+                    val pinSizePx = with(density) { 54.dp.toPx() }
                     GameCatalog.locations.forEachIndexed { index, loc ->
                         val prog = locationsProgress[loc.id]
                         val unlocked = prog?.unlocked == true || index == 0
@@ -294,7 +281,6 @@ fun FairyMapScreen(
                         val stars = (prog?.stars ?: 0L).toInt()
                         val isSelected = selectedLocation.id == loc.id
 
-                        val pinSizePx = with(androidx.compose.ui.platform.LocalDensity.current) { 74.dp.toPx() }
                         val xPx = (mapWidthPx * loc.mapXFraction - pinSizePx / 2f).roundToInt()
                         val yPx = (mapHeightPx * loc.mapYFraction - pinSizePx / 2f).roundToInt()
 
@@ -308,7 +294,7 @@ fun FairyMapScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(64.dp)
+                                    .size(52.dp)
                                     .clip(CircleShape)
                                     .background(
                                         when {
@@ -318,7 +304,7 @@ fun FairyMapScreen(
                                         }
                                     )
                                     .border(
-                                        width = if (isSelected) 3.5.dp else 2.dp,
+                                        width = if (isSelected) 3.dp else 2.dp,
                                         color = when {
                                             isSelected -> MaterialTheme.colorScheme.secondary.copy(alpha = pulseAlpha)
                                             unlocked -> MaterialTheme.colorScheme.primary
@@ -348,7 +334,7 @@ fun FairyMapScreen(
                                             Icons.Filled.Lock,
                                             contentDescription = "Локация закрыта",
                                             tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 } else if (completed) {
@@ -358,37 +344,37 @@ fun FairyMapScreen(
                                         tint = Color(0xFF4ADE80),
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .size(20.dp)
-                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                            .size(18.dp)
+                                            .background(Color.Black.copy(alpha = 0.65f), CircleShape)
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                                 shadowElevation = 2.dp
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = loc.fairyTaleName,
+                                        text = "${index + 1}. ${loc.fairyTaleName}",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                     )
                                     if (unlocked) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
                                             repeat(3) { starIdx ->
                                                 Icon(
                                                     imageVector = Icons.Filled.Star,
                                                     contentDescription = null,
                                                     tint = if (starIdx < stars) Color(0xFFF6B73C) else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                                                    modifier = Modifier.size(11.dp)
+                                                    modifier = Modifier.size(10.dp)
                                                 )
                                             }
                                         }
@@ -436,23 +422,17 @@ fun FairyMapScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = selectedLocation.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "Сказка: ${selectedLocation.fairyTaleName} • Герой: ${selectedLocation.heroName}",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = selectedLocation.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Сказка: ${selectedLocation.fairyTaleName} • Герой: ${selectedLocation.heroName}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
                     }
 
                     Text(

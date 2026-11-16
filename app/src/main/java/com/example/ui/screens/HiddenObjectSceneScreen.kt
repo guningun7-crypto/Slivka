@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,7 +65,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,6 +84,7 @@ import com.example.data.model.DialogueLine
 import com.example.ui.components.HiddenItemCanvas
 import com.example.ui.viewmodel.ActiveSceneState
 import com.example.ui.viewmodel.ScenePhase
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -106,9 +108,9 @@ fun HiddenObjectSceneScreen(
 
     val infiniteTransition = rememberInfiniteTransition(label = "hintPulse")
     val hintPulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
+        initialValue = 0.90f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
         label = "hintPulseScale"
     )
 
@@ -122,7 +124,7 @@ fun HiddenObjectSceneScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -187,7 +189,7 @@ fun HiddenObjectSceneScreen(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -212,26 +214,27 @@ fun HiddenObjectSceneScreen(
             }
         }
 
-        // Interactive Hidden Object Canvas Viewport
+        // Full-Screen Portrait Phone Scene Viewport
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             BoxWithConstraints(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f / 3f)
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(20.dp))
                     .clipToBounds()
-                    .border(2.dp, Color(0xFFF6C85F).copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                    .border(1.5.dp, Color(0xFFF6C85F).copy(alpha = 0.45f), RoundedCornerShape(20.dp))
             ) {
                 val widthPx = constraints.maxWidth.toFloat()
                 val heightPx = constraints.maxHeight.toFloat()
-                val baseItemDp = (46f * scene.difficulty.itemScale).dp
-                val itemSizePx = with(LocalDensity.current) { baseItemDp.toPx() }
+                val visualItemDp = (42f * scene.difficulty.itemScale).dp
+                val touchBoxDp = maxOf(44.dp, visualItemDp + 6.dp)
+                val touchBoxPx = with(LocalDensity.current) { touchBoxDp.toPx() }
+                val hintZoneRadiusPx = with(LocalDensity.current) { 105.dp.toPx() }
 
                 Box(
                     modifier = Modifier
@@ -239,7 +242,7 @@ fun HiddenObjectSceneScreen(
                         .pointerInput(scene.phase) {
                             if (scene.phase == ScenePhase.SEARCHING) {
                                 detectTransformGestures { _, pan, zoom, _ ->
-                                    val newScale = (zoomScale * zoom).coerceIn(1f, 2.6f)
+                                    val newScale = (zoomScale * zoom).coerceIn(1f, 2.8f)
                                     val maxOffsetX = (widthPx * (newScale - 1f)) / 2f
                                     val maxOffsetY = (heightPx * (newScale - 1f)) / 2f
                                     zoomScale = newScale
@@ -262,7 +265,7 @@ fun HiddenObjectSceneScreen(
                                             zoomScale = 1f
                                             panOffset = Offset.Zero
                                         } else {
-                                            zoomScale = 1.9f
+                                            zoomScale = 2.0f
                                         }
                                     },
                                     onTap = { tapOffset ->
@@ -286,18 +289,56 @@ fun HiddenObjectSceneScreen(
                         modifier = Modifier.fillMaxSize()
                     )
 
+                    // Broad, slightly offset subtle search-sector hint (non-bullseye)
+                    val hintedItem = scene.hintedItemId?.let { hid ->
+                        scene.targetItems.find { it.id == hid && it.id !in scene.foundItemIds }
+                    }
+                    if (hintedItem != null) {
+                        val hHash = abs(hintedItem.id.hashCode())
+                        val shiftX = ((hHash % 13) - 6) * 0.011f
+                        val shiftY = (((hHash / 13) % 13) - 6) * 0.009f
+                        val zoneCenterX = (hintedItem.xFraction + shiftX).coerceIn(0.16f, 0.84f) * widthPx
+                        val zoneCenterY = (hintedItem.yFraction + shiftY).coerceIn(0.16f, 0.84f) * heightPx
+
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val center = Offset(zoneCenterX, zoneCenterY)
+                            val radius = hintZoneRadiusPx * hintPulse
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color(0xFFF6C85F).copy(alpha = 0.24f),
+                                        Color(0xFFF6C85F).copy(alpha = 0.08f),
+                                        Color.Transparent
+                                    ),
+                                    center = center,
+                                    radius = radius
+                                ),
+                                radius = radius,
+                                center = center
+                            )
+                            drawCircle(
+                                color = Color(0xFFF6C85F).copy(alpha = 0.55f),
+                                radius = radius * 0.88f,
+                                center = center,
+                                style = Stroke(
+                                    width = 3.5f,
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 16f), 0f)
+                                )
+                            )
+                        }
+                    }
+
                     // Render Hidden Objects on Scene
                     scene.targetItems.forEach { item ->
                         val isFound = item.id in scene.foundItemIds
                         if (!isFound) {
-                            val isHinted = scene.hintedItemId == item.id
-                            val xPx = (widthPx * item.xFraction - itemSizePx / 2f).roundToInt()
-                            val yPx = (heightPx * item.yFraction - itemSizePx / 2f).roundToInt()
+                            val xPx = (widthPx * item.xFraction - touchBoxPx / 2f).roundToInt()
+                            val yPx = (heightPx * item.yFraction - touchBoxPx / 2f).roundToInt()
 
                             Box(
                                 modifier = Modifier
                                     .offset { IntOffset(xPx, yPx) }
-                                    .size(baseItemDp)
+                                    .size(touchBoxDp)
                                     .clip(CircleShape)
                                     .clickable(enabled = scene.phase == ScenePhase.SEARCHING) {
                                         wrongTapMarker = null
@@ -306,21 +347,12 @@ fun HiddenObjectSceneScreen(
                                     .testTag("hidden_item_${item.id}"),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isHinted) {
-                                    Canvas(modifier = Modifier.fillMaxSize()) {
-                                        drawCircle(
-                                            color = Color(0xFFF6C85F),
-                                            radius = (size.minDimension / 2f) * hintPulse,
-                                            style = Stroke(width = 6f)
-                                        )
-                                    }
-                                }
                                 HiddenItemCanvas(
                                     kind = item.kind,
                                     rotationDeg = item.rotationDeg,
-                                    ambientAlpha = if (scene.difficulty.id == "master") 0.88f else 0.96f,
+                                    ambientAlpha = scene.difficulty.ambientAlpha,
                                     showSoftShadow = true,
-                                    modifier = Modifier.size(baseItemDp * 0.85f)
+                                    modifier = Modifier.size(visualItemDp)
                                 )
                             }
                         }
@@ -363,12 +395,12 @@ fun HiddenObjectSceneScreen(
         // Bottom Controls: Target Checklist + Hint Button
         Surface(
             color = Color(0xFF231A35),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -415,7 +447,7 @@ fun HiddenObjectSceneScreen(
                             )
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -424,12 +456,12 @@ fun HiddenObjectSceneScreen(
                                         Icons.Filled.Check,
                                         contentDescription = "Найдено",
                                         tint = Color(0xFF4ADE80),
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 } else {
                                     HiddenItemCanvas(
                                         kind = item.kind,
-                                        modifier = Modifier.size(26.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                                 Column {
@@ -455,7 +487,6 @@ fun HiddenObjectSceneScreen(
         }
     }
 
-    // Story Dialogue Overlay (Intro & Outro)
     if (scene.phase == ScenePhase.INTRO_DIALOGUE || scene.phase == ScenePhase.OUTRO_DIALOGUE) {
         val lines = if (scene.phase == ScenePhase.INTRO_DIALOGUE) scene.location.introDialogue else scene.location.outroDialogue
         val currentLine = lines.getOrNull(scene.dialogueIndex)
@@ -472,7 +503,6 @@ fun HiddenObjectSceneScreen(
         }
     }
 
-    // Results Overlay
     if (scene.phase == ScenePhase.RESULTS) {
         ResultsOverlay(
             scene = scene,
@@ -649,7 +679,7 @@ private fun ResultsOverlay(
                     )
                 } else {
                     Text(
-                        text = "Слива Владиславовна: «Не расстраивайся! Попробуй ещё раз или используй подсказку.»",
+                        text = "Слива Владиславовна: «Мур-р, не сдавайся! Приближай картинку щипком и попробуй ещё раз.»",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )

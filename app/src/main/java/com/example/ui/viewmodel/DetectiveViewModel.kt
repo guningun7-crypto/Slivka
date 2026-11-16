@@ -13,7 +13,6 @@ import com.example.data.model.LocationProgress
 import com.example.data.model.QuestProgress
 import com.example.data.model.UnlockedAchievement
 import com.example.data.repository.DetectiveDataSource
-import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed interface GameUiState {
@@ -82,13 +80,9 @@ class DetectiveViewModel(
             quests = quests.associateBy { it.questId }
         ) as GameUiState
     }.catch { error ->
-        val firestoreError = generateSequence(error) { it.cause }
-            .filterIsInstance<FirebaseFirestoreException>()
-            .firstOrNull()
-        if (firestoreError == null && error is CancellationException) throw error
-        val rootError = firestoreError ?: error
-        Log.w(TAG, "Error observing detective state", rootError)
-        emit(GameUiState.Error(rootError.localizedMessage ?: "Не удалось загрузить данные детектива"))
+        if (error is CancellationException) throw error
+        Log.w(TAG, "Error observing detective state", error)
+        emit(GameUiState.Error(error.localizedMessage ?: "Не удалось загрузить данные детектива"))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000L),
@@ -131,7 +125,7 @@ class DetectiveViewModel(
             selectedDifficulty = DifficultyLevel.DETECTIVE.id,
             totalScore = 0L,
             totalStars = 0L,
-            hintsBalance = 3L,
+            hintsBalance = 2L,
             onboardingCompleted = true
         )
         viewModelScope.launch {
@@ -209,7 +203,6 @@ class DetectiveViewModel(
 
     fun startLocation(locationId: String, difficulty: DifficultyLevel) {
         val loc = GameCatalog.locationById(locationId)
-        // Prioritize clue items first so every run lets player discover clues!
         val cluesFirst = loc.items.sortedByDescending { it.clueInfo != null }
         val targetItems = cluesFirst.take(difficulty.objectsToFind)
         _activeScene.value = ActiveSceneState(
@@ -229,7 +222,7 @@ class DetectiveViewModel(
         } else {
             _activeScene.value = scene.copy(
                 phase = ScenePhase.SEARCHING,
-                slivaBannerText = "Удачи, сыщик! Ищи предметы из списка внизу."
+                slivaBannerText = "Осмотр начался! Найди ${scene.targetItems.size} предметов в сказке."
             )
             startSceneTimer()
         }
@@ -281,7 +274,6 @@ class DetectiveViewModel(
         val foundItem = scene.targetItems.find { it.id == itemId } ?: return
         val newFound = scene.foundItemIds + itemId
 
-        // Persist clue immediately if this object carries a special clue
         val clueInfo = foundItem.clueInfo
         if (clueInfo != null) {
             viewModelScope.launch {
@@ -300,7 +292,7 @@ class DetectiveViewModel(
         }
 
         val slivaMsg = if (clueInfo != null) {
-            "Мур-р! Найдена улика «${clueInfo.title}» — мои усы сразу её учуяли!"
+            "Мур-р! Найдена особая улика «${clueInfo.title}»!"
         } else {
             "Мяу-отлично! «${foundItem.name}» найден."
         }
@@ -310,8 +302,8 @@ class DetectiveViewModel(
         if (newFound.size >= scene.targetItems.size) {
             timerRunning = false
             val timeUsed = (scene.difficulty.timeLimitSeconds - scene.secondsRemaining).coerceAtLeast(1)
-            val baseScore = (newFound.size * 100L) + (scene.secondsRemaining * 3L) - (scene.mistakesCount * 20L)
-            val finalScore = (baseScore.coerceAtLeast(100L) * scene.difficulty.scoreMultiplier).toLong()
+            val baseScore = (newFound.size * 110L) + (scene.secondsRemaining * 4L) - (scene.mistakesCount * 25L)
+            val finalScore = (baseScore.coerceAtLeast(120L) * scene.difficulty.scoreMultiplier).toLong()
             val stars = when {
                 scene.mistakesCount <= 1 && scene.secondsRemaining >= scene.difficulty.timeLimitSeconds / 3 -> 3
                 scene.mistakesCount <= 4 -> 2
@@ -344,16 +336,24 @@ class DetectiveViewModel(
         val scene = _activeScene.value ?: return
         if (scene.phase != ScenePhase.SEARCHING) return
         val penalty = scene.difficulty.missPenaltySeconds
-        val updatedSec = (scene.secondsRemaining - penalty).coerceAtLeast(1)
-        _activeScene.value = scene.copy(
-            mistakesCount = scene.mistakesCount + 1,
-            secondsRemaining = updatedSec,
-            slivaBannerText = if (penalty > 0) {
-                "Фыр! Мимо! Кошачья осторожность не помешает — штраф -${penalty} сек."
-            } else {
-                "Там только пылинки, присмотрись получше!"
-            }
-        )
+        val remaining = (scene.secondsRemaining - penalty).coerceAtLeast(0)
+        if (remaining == 0) {
+            timerRunning = false
+            _activeScene.value = scene.copy(
+                mistakesCount = scene.mistakesCount + 1,
+                secondsRemaining = 0,
+                phase = ScenePhase.RESULTS,
+                isVictory = false,
+                earnedScore = 0L,
+                earnedStars = 0
+            )
+        } else {
+            _activeScene.value = scene.copy(
+                mistakesCount = scene.mistakesCount + 1,
+                secondsRemaining = remaining,
+                slivaBannerText = "Фыр! Промах — штраф -${penalty} сек! Приближай детали щипком."
+            )
+        }
     }
 
     fun useHint() {
@@ -372,7 +372,7 @@ class DetectiveViewModel(
         val unfound = scene.targetItems.firstOrNull { it.id !in scene.foundItemIds } ?: return
         _activeScene.value = scene.copy(
             hintedItemId = unfound.id,
-            slivaBannerText = "Слива Владиславовна: «${unfound.hintText}»"
+            slivaBannerText = "Слива шепчет загадку («${unfound.name}»): «${unfound.hintText}»"
         )
         viewModelScope.launch {
             repository.updateProfileFields(
@@ -444,7 +444,8 @@ class DetectiveViewModel(
                 }
             }
 
-            // Recompute total stars
+            // Recompute total stars and completed map
+            val completedIds = ready.locations.filterValues { it.completed }.keys + scene.location.id
             val updatedStarsMap = ready.locations.toMutableMap().apply {
                 put(scene.location.id, LocationProgress(locationId = scene.location.id, stars = bestStars))
             }
@@ -458,7 +459,7 @@ class DetectiveViewModel(
                 )
             )
 
-            // Achievements
+            // Per-location achievements & quests
             when (scene.location.id) {
                 "cottage" -> {
                     repository.unlockAchievement(currentUserId, "ach_cottage", "Лесной следопыт")
@@ -471,10 +472,32 @@ class DetectiveViewModel(
                     }
                 }
                 "forest" -> {
-                    repository.unlockAchievement(currentUserId, "ach_forest", "Хранитель сказок")
+                    repository.unlockAchievement(currentUserId, "ach_forest", "Хранитель рощи")
                     repository.updateQuestProgress(currentUserId, "quest_forest_case", 1L, 1L)
                 }
+                "snow_queen" -> {
+                    repository.unlockAchievement(currentUserId, "ach_snow_queen", "Покоритель льдов")
+                }
+                "lukomorye" -> {
+                    repository.unlockAchievement(currentUserId, "ach_lukomorye", "Друг Кота Учёного")
+                }
+                "bazaar" -> {
+                    repository.unlockAchievement(currentUserId, "ach_bazaar", "Мастер чудес")
+                }
+                "morozko" -> {
+                    repository.unlockAchievement(currentUserId, "ach_morozko", "Гость Морозко")
+                }
+                "buyan" -> {
+                    repository.unlockAchievement(currentUserId, "ach_buyan", "Княжеский советник")
+                    repository.updateQuestProgress(currentUserId, "quest_buyan_finale", 1L, 1L)
+                }
             }
+
+            val snowAndLuko = listOf("snow_queen", "lukomorye").count { it in completedIds }.toLong()
+            repository.updateQuestProgress(currentUserId, "quest_snow_lukomorye", snowAndLuko, 2L)
+
+            val bazaarAndMorozko = listOf("bazaar", "morozko").count { it in completedIds }.toLong()
+            repository.updateQuestProgress(currentUserId, "quest_bazaar_morozko", bazaarAndMorozko, 2L)
 
             if (scene.mistakesCount == 0) {
                 repository.unlockAchievement(currentUserId, "ach_eagle_eye", "Орлиный глаз")
@@ -483,7 +506,7 @@ class DetectiveViewModel(
                 repository.unlockAchievement(currentUserId, "ach_master", "Магистр сыска")
             }
 
-            repository.updateQuestProgress(currentUserId, "quest_7_stars", totalStarsSum, 7L)
+            repository.updateQuestProgress(currentUserId, "quest_18_stars", totalStarsSum, 18L)
         }
     }
 
@@ -491,7 +514,8 @@ class DetectiveViewModel(
         val ready = uiState.value as? GameUiState.Ready ?: return
         val clueCount = (ready.clues.size + 1).toLong()
         repository.updateQuestProgress(currentUserId, "quest_collect_5_clues", clueCount, 5L)
-        if (clueCount >= 6L) {
+        repository.updateQuestProgress(currentUserId, "quest_collect_15_clues", clueCount, 15L)
+        if (clueCount >= 12L) {
             repository.unlockAchievement(currentUserId, "ach_clue_hunter", "Эксперт по уликам")
         }
     }
