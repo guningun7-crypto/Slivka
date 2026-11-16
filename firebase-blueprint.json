@@ -1,0 +1,334 @@
+{
+  "entities": {
+    "DetectiveProfile": {
+      "title": "DetectiveProfile",
+      "description": "Young detective profile, avatar customization, difficulty, and overall progression.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID owning this detective profile."
+        },
+        "name": {
+          "type": "string",
+          "description": "Player chosen detective name."
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["boy", "girl"],
+          "description": "Selected detective character gender."
+        },
+        "skinToneIndex": {
+          "type": "integer",
+          "description": "Index of avatar skin tone (0-3)."
+        },
+        "hairStyleIndex": {
+          "type": "integer",
+          "description": "Index of avatar hair style (0-3)."
+        },
+        "hairColorIndex": {
+          "type": "integer",
+          "description": "Index of avatar hair color (0-4)."
+        },
+        "hatId": {
+          "type": "string",
+          "enum": ["none", "cap", "trilby", "beret", "hood"],
+          "description": "Equipped detective hat identifier."
+        },
+        "coatId": {
+          "type": "string",
+          "enum": ["plum", "emerald", "royal", "gold"],
+          "description": "Equipped detective coat color identifier."
+        },
+        "accessoryId": {
+          "type": "string",
+          "enum": ["loupe", "watch", "notebook", "goggles"],
+          "description": "Equipped detective accessory identifier."
+        },
+        "selectedDifficulty": {
+          "type": "string",
+          "enum": ["novice", "detective", "master"],
+          "description": "Active difficulty level for hidden object scenes."
+        },
+        "totalScore": {
+          "type": "integer",
+          "description": "Accumulated investigation score across all fairy-tale locations."
+        },
+        "totalStars": {
+          "type": "integer",
+          "description": "Total stars earned across all fairy-tale locations."
+        },
+        "hintsBalance": {
+          "type": "integer",
+          "description": "Available hints from Director Sliva Vladislavovna."
+        },
+        "onboardingCompleted": {
+          "type": "boolean",
+          "description": "Whether initial detective character setup is completed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "gender",
+        "skinToneIndex",
+        "hairStyleIndex",
+        "hairColorIndex",
+        "hatId",
+        "coatId",
+        "accessoryId",
+        "selectedDifficulty",
+        "totalScore",
+        "totalStars",
+        "hintsBalance",
+        "onboardingCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LocationProgress": {
+      "title": "LocationProgress",
+      "description": "Progress, stars, and best score for a fairy-tale hidden object location.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID."
+        },
+        "locationId": {
+          "type": "string",
+          "enum": ["cottage", "palace", "forest"],
+          "description": "Fairy-tale location identifier."
+        },
+        "unlocked": {
+          "type": "boolean",
+          "description": "Whether the location is unlocked on the interactive map."
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether the case in this location has been solved."
+        },
+        "stars": {
+          "type": "integer",
+          "description": "Best star rating achieved (0-3)."
+        },
+        "bestScore": {
+          "type": "integer",
+          "description": "Best score achieved in this location."
+        },
+        "bestTimeSeconds": {
+          "type": "integer",
+          "description": "Fastest completion time in seconds."
+        },
+        "difficultyCompleted": {
+          "type": "string",
+          "enum": ["", "novice", "detective", "master"],
+          "description": "Highest difficulty level completed."
+        },
+        "questsCompletedCount": {
+          "type": "integer",
+          "description": "Number of location quests completed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "locationId",
+        "unlocked",
+        "completed",
+        "stars",
+        "bestScore",
+        "bestTimeSeconds",
+        "difficultyCompleted",
+        "questsCompletedCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CollectedClue": {
+      "title": "CollectedClue",
+      "description": "A fairy-tale clue discovered during investigation and stored in the detective inventory.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID."
+        },
+        "clueId": {
+          "type": "string",
+          "description": "Unique clue identifier."
+        },
+        "locationId": {
+          "type": "string",
+          "enum": ["cottage", "palace", "forest"],
+          "description": "Origin location of the clue."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the clue."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the clue."
+        },
+        "slivaNote": {
+          "type": "string",
+          "description": "Analytical note from Director Sliva Vladislavovna."
+        },
+        "rarity": {
+          "type": "string",
+          "enum": ["common", "rare", "legendary"],
+          "description": "Rarity tier of the clue."
+        },
+        "discoveredAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when clue was collected (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "clueId",
+        "locationId",
+        "title",
+        "description",
+        "slivaNote",
+        "rarity",
+        "discoveredAt"
+      ]
+    },
+    "UnlockedAchievement": {
+      "title": "UnlockedAchievement",
+      "description": "An achievement badge unlocked by the young detective.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID."
+        },
+        "achievementId": {
+          "type": "string",
+          "description": "Unique achievement identifier."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the achievement."
+        },
+        "unlockedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when achievement was unlocked (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "achievementId",
+        "title",
+        "unlockedAt"
+      ]
+    },
+    "QuestProgress": {
+      "title": "QuestProgress",
+      "description": "Progress state for a quest assigned by Director Sliva Vladislavovna.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID."
+        },
+        "questId": {
+          "type": "string",
+          "description": "Unique quest identifier."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "completed"],
+          "description": "Current quest status."
+        },
+        "currentProgress": {
+          "type": "integer",
+          "description": "Current quest step count."
+        },
+        "targetProgress": {
+          "type": "integer",
+          "description": "Target count required to complete the quest."
+        },
+        "rewardClaimed": {
+          "type": "boolean",
+          "description": "Whether the quest reward has been claimed."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of quest start (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last quest progress update (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "questId",
+        "status",
+        "currentProgress",
+        "targetProgress",
+        "rewardClaimed",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/DetectiveProfile"
+      },
+      "description": "Authenticated player detective profile and customization settings."
+    },
+    "/users/{userId}/location_progress/{locationId}": {
+      "schema": {
+        "$ref": "#/entities/LocationProgress"
+      },
+      "description": "Per-location hidden object game progress and mastery stars."
+    },
+    "/users/{userId}/clues/{clueId}": {
+      "schema": {
+        "$ref": "#/entities/CollectedClue"
+      },
+      "description": "Clue items collected in the detective inventory."
+    },
+    "/users/{userId}/achievements/{achievementId}": {
+      "schema": {
+        "$ref": "#/entities/UnlockedAchievement"
+      },
+      "description": "Achievements unlocked by the detective."
+    },
+    "/users/{userId}/quests/{questId}": {
+      "schema": {
+        "$ref": "#/entities/QuestProgress"
+      },
+      "description": "Quests assigned by Director Sliva Vladislavovna."
+    }
+  }
+}

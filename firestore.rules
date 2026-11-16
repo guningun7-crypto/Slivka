@@ -1,0 +1,258 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable hardened primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // Validation Helpers
+    function isValidDetectiveProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
+             data.gender is string && data.gender in ['boy', 'girl'] &&
+             data.skinToneIndex is int && data.skinToneIndex >= 0 && data.skinToneIndex <= 3 &&
+             data.hairStyleIndex is int && data.hairStyleIndex >= 0 && data.hairStyleIndex <= 3 &&
+             data.hairColorIndex is int && data.hairColorIndex >= 0 && data.hairColorIndex <= 4 &&
+             data.hatId is string && data.hatId in ['none', 'cap', 'trilby', 'beret', 'hood'] &&
+             data.coatId is string && data.coatId in ['plum', 'emerald', 'royal', 'gold'] &&
+             data.accessoryId is string && data.accessoryId in ['loupe', 'watch', 'notebook', 'goggles'] &&
+             data.selectedDifficulty is string && data.selectedDifficulty in ['novice', 'detective', 'master'] &&
+             data.totalScore is int && data.totalScore >= 0 && data.totalScore <= 10000000 &&
+             data.totalStars is int && data.totalStars >= 0 && data.totalStars <= 100 &&
+             data.hintsBalance is int && data.hintsBalance >= 0 && data.hintsBalance <= 999 &&
+             data.onboardingCompleted is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidLocationProgress(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.locationId is string && data.locationId in ['cottage', 'palace', 'forest'] &&
+             data.unlocked is bool &&
+             data.completed is bool &&
+             data.stars is int && data.stars >= 0 && data.stars <= 3 &&
+             data.bestScore is int && data.bestScore >= 0 && data.bestScore <= 1000000 &&
+             data.bestTimeSeconds is int && data.bestTimeSeconds >= 0 && data.bestTimeSeconds <= 86400 &&
+             data.difficultyCompleted is string && data.difficultyCompleted in ['', 'novice', 'detective', 'master'] &&
+             data.questsCompletedCount is int && data.questsCompletedCount >= 0 && data.questsCompletedCount <= 50 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCollectedClue(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.clueId is string && data.clueId.size() >= 1 && data.clueId.size() <= 64 &&
+             data.locationId is string && data.locationId in ['cottage', 'palace', 'forest'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.description is string && data.description.size() >= 1 && data.description.size() <= 300 &&
+             data.slivaNote is string && data.slivaNote.size() >= 1 && data.slivaNote.size() <= 300 &&
+             data.rarity is string && data.rarity in ['common', 'rare', 'legendary'] &&
+             isValidTimestamp(data.discoveredAt);
+    }
+
+    function isValidUnlockedAchievement(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.achievementId is string && data.achievementId.size() >= 1 && data.achievementId.size() <= 64 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             isValidTimestamp(data.unlockedAt);
+    }
+
+    function isValidQuestProgress(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.questId is string && data.questId.size() >= 1 && data.questId.size() <= 64 &&
+             data.status is string && data.status in ['active', 'completed'] &&
+             data.currentProgress is int && data.currentProgress >= 0 && data.currentProgress <= 100 &&
+             data.targetProgress is int && data.targetProgress >= 1 && data.targetProgress <= 100 &&
+             data.rewardClaimed is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // User profile root document
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'name', 'gender', 'skinToneIndex', 'hairStyleIndex',
+                         'hairColorIndex', 'hatId', 'coatId', 'accessoryId',
+                         'selectedDifficulty', 'totalScore', 'totalStars',
+                         'hintsBalance', 'onboardingCompleted', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'name', 'gender', 'skinToneIndex', 'hairStyleIndex',
+                         'hairColorIndex', 'hatId', 'coatId', 'accessoryId',
+                         'selectedDifficulty', 'totalScore', 'totalStars',
+                         'hintsBalance', 'onboardingCompleted', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidDetectiveProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidDetectiveProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'gender', 'skinToneIndex', 'hairStyleIndex',
+                         'hairColorIndex', 'hatId', 'coatId', 'accessoryId',
+                         'selectedDifficulty', 'totalScore', 'totalStars',
+                         'hintsBalance', 'onboardingCompleted', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      // Location progress subcollection
+      match /location_progress/{locationId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(locationId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(locationId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().locationId == locationId &&
+                         incoming().keys().hasAll([
+                           'userId', 'locationId', 'unlocked', 'completed', 'stars',
+                           'bestScore', 'bestTimeSeconds', 'difficultyCompleted',
+                           'questsCompletedCount', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'locationId', 'unlocked', 'completed', 'stars',
+                           'bestScore', 'bestTimeSeconds', 'difficultyCompleted',
+                           'questsCompletedCount', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidLocationProgress(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(locationId) &&
+                         request.auth.uid == userId &&
+                         isValidLocationProgress(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().locationId == existing().locationId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'unlocked', 'completed', 'stars', 'bestScore',
+                           'bestTimeSeconds', 'difficultyCompleted',
+                           'questsCompletedCount', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(locationId) && request.auth.uid == userId;
+      }
+
+      // Collected clues inventory subcollection (immutable once discovered)
+      match /clues/{clueId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(clueId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(clueId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().clueId == clueId &&
+                         incoming().keys().hasAll([
+                           'userId', 'clueId', 'locationId', 'title',
+                           'description', 'slivaNote', 'rarity', 'discoveredAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'clueId', 'locationId', 'title',
+                           'description', 'slivaNote', 'rarity', 'discoveredAt'
+                         ]) &&
+                         isValidCollectedClue(incoming());
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(clueId) && request.auth.uid == userId;
+      }
+
+      // Unlocked achievements subcollection (immutable once unlocked)
+      match /achievements/{achievementId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(achievementId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(achievementId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().achievementId == achievementId &&
+                         incoming().keys().hasAll(['userId', 'achievementId', 'title', 'unlockedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'achievementId', 'title', 'unlockedAt']) &&
+                         isValidUnlockedAchievement(incoming());
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(achievementId) && request.auth.uid == userId;
+      }
+
+      // Quests progress subcollection
+      match /quests/{questId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(questId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(questId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().questId == questId &&
+                         incoming().keys().hasAll([
+                           'userId', 'questId', 'status', 'currentProgress',
+                           'targetProgress', 'rewardClaimed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'questId', 'status', 'currentProgress',
+                           'targetProgress', 'rewardClaimed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidQuestProgress(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(questId) &&
+                         request.auth.uid == userId &&
+                         isValidQuestProgress(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().questId == existing().questId &&
+                         incoming().targetProgress == existing().targetProgress &&
+                         incoming().createdAt == existing().createdAt &&
+                         existing().rewardClaimed == false &&
+                         (
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['currentProgress', 'status', 'updatedAt'])) ||
+                           (incoming().status == 'completed' && incoming().rewardClaimed == true &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['currentProgress', 'status', 'rewardClaimed', 'updatedAt']))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(questId) && request.auth.uid == userId;
+      }
+    }
+  }
+}

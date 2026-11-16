@@ -1,0 +1,6 @@
+{
+  "name": "Сказкосыск",
+  "description": "Игра в стиле Hidden Object о юном детективе, расследующем пропажи в Сказочной стране вместе со Сливой Владиславовной.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
