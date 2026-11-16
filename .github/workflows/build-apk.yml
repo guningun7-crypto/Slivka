@@ -12,18 +12,22 @@ jobs:
       - name: Получение кода игры
         uses: actions/checkout@v4
 
-      - name: Настройка JDK 17
+      - name: Настройка JDK 21 (требуется для AGP 9.1.1 и Gradle 9.3.1)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Настройка Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Принятие лицензий Android SDK (для автоматической загрузки SDK 36.1)
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+
+      - name: Настройка Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '9.3.1'
 
-      - name: Генерация debug.keystore
+      - name: Подготовка ключа подписи debug.keystore
         run: |
           if [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore
@@ -32,12 +36,12 @@ jobs:
           fi
 
       - name: Сборка установочного файла Сказкосыск.apk
-        run: gradle assembleDebug
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Переименование файла в Skazkosysk.apk
         run: cp app/build/outputs/apk/debug/app-debug.apk Skazkosysk.apk
 
-      - name: Готовый установщик Skazkosysk.apk
+      - name: Публикация готового установщика Skazkosysk.apk
         uses: actions/upload-artifact@v4
         with:
           name: Skazkosysk-APK
